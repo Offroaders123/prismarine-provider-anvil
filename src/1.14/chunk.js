@@ -1,11 +1,24 @@
 const nbt = require('prismarine-nbt')
 const neededBits = require('prismarine-chunk/src/pc/common/neededBits')
 
+/**
+ * @param {number} mcVersion
+ * @param {number} worldVersion
+ * @param {boolean} noSpan
+ */
 module.exports = (mcVersion, worldVersion, noSpan) => {
   const BitArray = require(`prismarine-chunk/src/pc/common/BitArray${noSpan ? 'NoSpan' : ''}`)
   const ChunkSection = require('prismarine-chunk')(mcVersion).section
 
+  /**
+   * @param {typeof import('prismarine-chunk').PCChunk} Chunk
+   * @param mcData
+   */
   return (Chunk, mcData) => {
+    /**
+     * @param {nbt.NBT} data
+     * @returns {import('prismarine-chunk').PCChunk}
+     */
     function nbtChunkToPrismarineChunk (data) {
       const nbtd = nbt.simplify(data)
       const chunk = new Chunk()
@@ -14,6 +27,11 @@ module.exports = (mcVersion, worldVersion, noSpan) => {
       return chunk
     }
 
+    /**
+     * @param {import('prismarine-chunk').PCChunk} chunk
+     * @param {number} chunkXPos
+     * @param {number} chunkZPos
+     */
     function prismarineChunkToNbt (chunk, chunkXPos, chunkZPos) {
       return {
         name: '',
@@ -54,11 +72,21 @@ module.exports = (mcVersion, worldVersion, noSpan) => {
       }
     }
 
+    /**
+     * @param {import('prismarine-chunk').PCChunk & { sectionMask: number; blockLightMask: number; skyLightMask: number; blockLightSections: { data: number[]; }[]; skyLightSections: { data: number[]; }[]; }} chunk
+     * @param {import('prismarine-chunk').PCChunk['sections']} sections
+     * @returns {void}
+     */
     function readSections (chunk, sections) {
       sections.forEach(section => readSection(chunk, section))
     }
 
+    /**
+     * @param {import('prismarine-chunk').PCChunk & { blockLightSections: { data: number[]; }[]; skyLightSections: { data: number[]; }[]; }} chunk
+     * @returns {{ type: string; value: { type: string; value: import('prismarine-chunk').PCChunk['sections']; }; }}
+     */
     function writeSections (chunk) {
+      /** @type {import('prismarine-chunk').PCChunk['sections']} */
       const sections = []
       for (let sectionY = 0; sectionY < 16; sectionY++) {
         const section = chunk.sections[sectionY]
@@ -74,6 +102,11 @@ module.exports = (mcVersion, worldVersion, noSpan) => {
       }
     }
 
+    /**
+     * @param {import('prismarine-chunk').PCChunk & { sectionMask: number; blockLightMask: number; skyLightMask: number; blockLightSections: { data: number[]; }[]; skyLightSections: { data: number[]; }[]; }} chunk
+     * @param {import('prismarine-chunk').PCChunk['sections'][number]} section
+     * @returns {void}
+     */
     function readSection (chunk, section) {
       if (section.Y >= 0 && section.Y <= 16) {
         let chunkSection = chunk.sections[section.Y]
@@ -111,6 +144,11 @@ module.exports = (mcVersion, worldVersion, noSpan) => {
       }
     }
 
+    /**
+     * @param {string} value
+     * @param {{ type: string; values: string[]; }} state
+     * @returns {number}
+     */
     function parseValue (value, state) {
       if (state.type === 'enum') {
         return state.values.indexOf(value)
@@ -120,6 +158,12 @@ module.exports = (mcVersion, worldVersion, noSpan) => {
       return parseInt(value, 10)
     }
 
+    /**
+     * @param {{ name: string; type: string; values: string[]; num_values: number; }[]} states
+     * @param {string} name
+     * @param {string} value
+     * @returns {number}
+     */
     function getStateValue (states, name, value) {
       let offset = 1
       for (let i = states.length - 1; i >= 0; i--) {
@@ -132,6 +176,11 @@ module.exports = (mcVersion, worldVersion, noSpan) => {
       return 0
     }
 
+    /**
+     * @param {import('prismarine-chunk').PCChunk['sections'][number]} section
+     * @param {{ Properties?: Record<string, any>; Name: string; }[]} palette
+     * @returns {void}
+     */
     function readPalette (section, palette = []) {
       section.palette = []
       for (const type of palette) {
@@ -148,6 +197,11 @@ module.exports = (mcVersion, worldVersion, noSpan) => {
       }
     }
 
+    /**
+     * @param {import('prismarine-chunk').PCChunk['sections'][number]} section
+     * @param {[number, number][]} blockStates
+     * @returns {void}
+     */
     function readBlocks (section, blockStates = []) {
       section.data = section.data.resizeTo(Math.max(4, neededBits(section.palette.length - 1)))
       for (let i = 0; i < blockStates.length; i++) {
@@ -163,10 +217,22 @@ module.exports = (mcVersion, worldVersion, noSpan) => {
       }
     }
 
+    /**
+     * @param {number} a
+     * @param {number} b
+     * @param {number} c
+     * @param {number} d
+     * @returns {number}
+     */
     function makeUInt (a, b, c, d) {
       return (((a & 0xFF) << 24) | ((b & 0xFF) << 16) | ((c & 0xFF) << 8) | (d & 0xFF)) >>> 0
     }
 
+    /**
+     * @param {{ data: number[]; }} bitArray
+     * @param {number[]} array
+     * @returns {void}
+     */
     function readByteArray (bitArray, array) {
       for (let i = 0; i < bitArray.data.length; i += 2) {
         const i4 = i * 4
@@ -175,30 +241,48 @@ module.exports = (mcVersion, worldVersion, noSpan) => {
       }
     }
 
+    /**
+     * @param {import('prismarine-chunk').PCChunk['sections'][number]} section
+     * @param {number} sectionY
+     * @param {{ data: number[]; }} blockLight
+     * @param {{ data: number[]; }} skyLight
+     * @returns {import('prismarine-chunk').PCChunk['sections'][number]}
+     */
     function writeSection (section, sectionY, blockLight, skyLight) {
-      const nbtSection = {
-        Y: {
+      /** @type {import('prismarine-chunk').PCChunk['sections'][number]} */
+      const nbtSection = {}
+      nbtSection.Y = {
           type: 'byte',
           value: sectionY
-        },
-        BlockStates: writeBlocks(section.data)
       }
+      nbtSection.BlockStates = writeBlocks(section.data)
       if (section.palette !== null) nbtSection.Palette = writePalette(section.palette)
       if (blockLight !== null) nbtSection.BlockLight = writeByteArray(blockLight)
       if (skyLight !== null) nbtSection.SkyLight = writeByteArray(skyLight)
       return nbtSection
     }
 
+    /**
+     * @param {{ type: string; values: any[]; }} state
+     * @param {any} value
+     * @returns {string}
+     */
     function writeValue (state, value) {
       if (state.type === 'enum') return state.values[value]
       if (state.type === 'bool') return value ? 'false' : 'true'
       return value + ''
     }
 
+    /**
+     * @param {number[]} palette
+     * @returns {{ type: 'list'; value: { type: 'compound'; value: { Properties?: { type: 'compound'; value: Record<string, any>; }; Name: { type: 'string'; value: string; }; }[]; }; }}
+    */
     function writePalette (palette) {
+      /** @type {{ Properties?: { type: 'compound'; value: Record<string, any>; }; Name: { type: 'string'; value: string; }; }[]} */
       const nbtPalette = []
       for (const state of palette) {
         const block = mcData.blocksByStateId[state]
+        /** @type {{ Properties?: { type: 'compound'; value: Record<string, any>; }; Name: { type: 'string'; value: string; }; }} */
         const nbtBlock = {}
         if (block.states.length > 0) {
           let data = state - block.minStateId
@@ -215,7 +299,12 @@ module.exports = (mcVersion, worldVersion, noSpan) => {
       return { type: 'list', value: { type: 'compound', value: nbtPalette } }
     }
 
+    /**
+     * @param {{ data: number[]; }} blocks
+     * @returns {{ type: 'longArray'; value: [number, number][]; }}
+     */
     function writeBlocks (blocks) {
+      /** @type {[number, number][]} */
       const buffer = new Array(blocks.data.length / 2)
       for (let i = 0; i < buffer.length; i++) {
         buffer[i] = [blocks.data[i * 2 + 1] << 0, blocks.data[i * 2] << 0]
@@ -226,7 +315,12 @@ module.exports = (mcVersion, worldVersion, noSpan) => {
       }
     }
 
+    /**
+     * @param {{ data: number[]; }} bitArray
+     * @returns {{ type: 'byteArray'; value: number[]; }}
+     */
     function writeByteArray (bitArray) {
+      /** @type {number[]} */
       const buffer = []
       for (let i = 0; i < bitArray.data.length; i += 2) {
         let a = bitArray.data[i + 1]
