@@ -7,6 +7,11 @@ const deflateAsync = promisify(zlib.deflate)
 const gunzipAsync = promisify(zlib.gunzip)
 const inflateAsync = promisify(zlib.inflate)
 
+/**
+ * @param {number} size
+ * @param {number} value
+ * @returns {Buffer}
+ */
 function createFilledBuffer (size, value) {
   const b = Buffer.alloc(size)
   b.fill(value)
@@ -14,17 +19,35 @@ function createFilledBuffer (size, value) {
 }
 
 class RegionFile {
+  /** @type {number[]} */
+  offsets;
+  /** @type {number[]} */
+  chunkTimestamps;
+  /** @type {number | Date} */
+  lastModified;
+  /** @type {boolean[]} */
+  sectorFree;
+
+  /**
+   * @param {string} path
+   */
   constructor (path) {
     this.fileName = path
     this.lastModified = 0
     this.q = Promise.resolve()
   }
 
+  /**
+   * @returns {Promise<void>}
+   */
   async initialize () {
     this.ini = this._initialize()
     await this.ini
   }
 
+  /**
+   * @returns {Promise<void>}
+   */
   async _initialize () {
     this.offsets = []
     this.chunkTimestamps = []
@@ -83,16 +106,24 @@ class RegionFile {
     }
   }
 
-  /* gets how much the region file has grown since it was last checked */
+  /**
+   * gets how much the region file has grown since it was last checked
+   * 
+   * @returns {number}
+   */
   getSizeDelta () {
     const ret = this.sizeDelta
     this.sizeDelta = 0
     return ret
   }
 
-  /*
+  /**
    * gets an (uncompressed) stream representing the chunk data returns null if
    * the chunk is not found or an error occurs
+   * 
+   * @param {number} x
+   * @param {number} z
+   * @returns {Promise<nbt.NBT>}
    */
   async read (x, z) {
     await this.ini
@@ -140,12 +171,25 @@ class RegionFile {
     return decompress(data).then(nbt.parseUncompressed)
   }
 
+  /**
+   * @param {number} x
+   * @param {number} z
+   * @param {nbt.NBT} nbtData
+   * @returns {Promise<void>}
+   */
   async write (x, z, nbtData) {
     this.q = this.q.then(() => this._write(x, z, nbtData))
     await this.q
   }
 
-  /* write a chunk at (x,z) with length bytes of data to disk */
+  /**
+   * write a chunk at (x,z) with length bytes of data to disk
+   * 
+   * @param {number} x
+   * @param {number} z
+   * @param {nbt.NBT} nbtData
+   * @returns {Promise<void>}
+   */
   async _write (x, z, nbtData) {
     await this.ini
     const uncompressedData = nbt.writeUncompressed(nbtData)
@@ -224,6 +268,12 @@ class RegionFile {
     RegionFile.debug('FINISH SAVE ' + x + ', ' + z + ', ' + length)
   }
 
+  /**
+   * @param {number} sectorNumber
+   * @param {Buffer} data
+   * @param {number} length
+   * @returns {Promise<void>}
+   */
   async writeChunk (sectorNumber, data, length) {
     const buffer = Buffer.alloc(4 + 1 + length)
     buffer.writeUInt32BE(length, 0)
@@ -232,19 +282,41 @@ class RegionFile {
     await this.file.write(buffer, 0, buffer.length, sectorNumber * RegionFile.SECTOR_BYTES)
   }
 
-  /* is this an invalid chunk coordinate? */
+  /**
+   * is this an invalid chunk coordinate?
+   * 
+   * @param {number} x
+   * @param {number} z
+   * @returns {boolean}
+   */
   static outOfBounds (x, z) {
     return x < 0 || x >= 32 || z < 0 || z >= 32
   }
 
+  /**
+   * @param {number} x
+   * @param {number} z
+   * @returns {number}
+   */
   getOffset (x, z) {
     return this.offsets[x + z * 32]
   }
 
+  /**
+   * @param {number} x
+   * @param {number} z
+   * @returns {boolean}
+   */
   hasChunk (x, z) {
     return this.getOffset(x, z) !== 0
   }
 
+  /**
+   * @param {number} x
+   * @param {number} z
+   * @param {number} offset
+   * @returns {Promise<void>}
+   */
   async setOffset (x, z, offset) {
     this.offsets[x + z * 32] = offset
     const buffer = Buffer.alloc(4)
@@ -252,6 +324,12 @@ class RegionFile {
     await this.file.write(buffer, 0, buffer.length, (x + z * 32) * 4)
   }
 
+  /**
+   * @param {number} x
+   * @param {number} z
+   * @param {number} value
+   * @returns {Promise<void>}
+   */
   async setTimestamp (x, z, value) {
     this.chunkTimestamps[x + z * 32] = value
     const buffer = Buffer.alloc(4)
@@ -259,6 +337,9 @@ class RegionFile {
     await this.file.write(buffer, 0, buffer.length, RegionFile.SECTOR_BYTES + (x + z * 32) * 4)
   }
 
+  /**
+   * @returns {Promise<void>}
+   */
   async close () {
     await this.file.close()
   }
@@ -272,10 +353,9 @@ RegionFile.SECTOR_INTS = 4096 / 4
 
 RegionFile.CHUNK_HEADER_SIZE = 5
 
-if (process.env.NODE_DEBUG && /anvil/.test(process.env.NODE_DEBUG)) {
-  RegionFile.debug = console.log
-} else {
-  RegionFile.debug = () => {}
-}
+RegionFile.debug =
+  process.env.NODE_DEBUG && /anvil/.test(process.env.NODE_DEBUG)
+    ? console.log
+    : () => {};
 
 module.exports = RegionFile

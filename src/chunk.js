@@ -1,5 +1,8 @@
-const PrismarineChunk = require('prismarine-chunk')
+const PrismarineChunk = /** @type {typeof import('prismarine-chunk').default} */ (/** @type {unknown} */ (require('prismarine-chunk')))
 
+/**
+ * @param {string} registryOrVersion
+ */
 module.exports = (registryOrVersion) => {
   const registry = typeof registryOrVersion === 'string' ? require('prismarine-registry')(registryOrVersion) : registryOrVersion
   const Chunk = PrismarineChunk(registry)

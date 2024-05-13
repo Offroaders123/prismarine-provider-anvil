@@ -3,6 +3,11 @@ const { promisify } = require('util')
 const fs = require('fs').promises
 const zlib = require('zlib')
 
+/**
+ * @param {nbt.NBT} nbtData
+ * @param {zlib.CompressCallback} cb
+ * @returns {void}
+ */
 function write (nbtData, cb) {
   const data = nbt.writeUncompressed(nbtData)
   zlib.gzip(data, cb)
@@ -13,12 +18,21 @@ const writeAsync = promisify(write)
 
 module.exports = { readLevel, writeLevel }
 
+/**
+ * @param {string} path
+ * @returns {Promise<import('./level.js').LevelDatFull>}
+ */
 async function readLevel (path) {
   const content = await fs.readFile(path)
   const dnbt = await parseAsync(content)
   return nbt.simplify(dnbt).Data
 }
 
+/**
+ * @param {string} path
+ * @param {import('./level.js').LevelDatWrite} value
+ * @returns {Promise<void>}
+ */
 async function writeLevel (path, value) {
   const nbt = {
     type: 'compound',
@@ -57,6 +71,6 @@ async function writeLevel (path, value) {
       }
     }
   }
-  const data = await writeAsync(nbt)
+  const data = await writeAsync(/** @type {nbt.NBT} */ (nbt))
   await fs.writeFile(path, data)
 }
