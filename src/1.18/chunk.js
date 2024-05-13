@@ -1,13 +1,25 @@
 const assert = require('assert')
 const nbt = require('prismarine-nbt')
 
+/**
+ * @param {import('prismarine-chunk').PCChunk} ChunkColumn
+ * @param {ReturnType<import('prismarine-registry')>} registry
+ */
 module.exports = (ChunkColumn, registry) => {
   const Block = require('prismarine-block')(registry)
   const dataVersion = registry.version.dataVersion
   // turns a JS object into an NBT compound, with the values as nbt.string's
+  /**
+   * @param {Record<string, string | number | boolean>} props
+   */
   const objPropsToNbt = props => Object.fromEntries(Object.entries(props).map(([k, v]) => [k, nbt.string(String(v))]))
 
+  /**
+   * @param {import('prismarine-chunk').PCChunk['sections'][number]} column
+   * @returns {import('prismarine-chunk').PCChunk['sections']}
+   */
   function writeSections (column) {
+    /** @type {import('prismarine-chunk').PCChunk['sections']} */
     const sections = []
     const minY = column.minY >> 4
     const maxY = column.worldHeight >> 4
@@ -20,7 +32,7 @@ module.exports = (ChunkColumn, registry) => {
       if (section) {
         section.palette = section.palette === undefined ? [section.data.value] : section.palette
         let blockStates, biomes, blockLight, skyLight
-        const blockPalette = section.palette.map(id => Block.fromStateId(id))
+        const blockPalette = /** @type {number[]} */ (section.palette).map(id => Block.fromStateId(id))
           .map(block => ({
             Name: nbt.string('minecraft:' + block.name),
             Properties: nbt.comp(objPropsToNbt(block.getProperties()))
@@ -67,11 +79,11 @@ module.exports = (ChunkColumn, registry) => {
           }
         }
 
-        const tag = {
-          Y: nbt.byte(y),
-          block_states: blockStates,
-          biomes
-        }
+        /** @type {import('prismarine-chunk').PCChunk['sections'][number]} */
+        const tag = {}
+        tag.Y = nbt.byte(y)
+        tag.block_states = blockStates
+        tag.biomes = biomes
 
         if (blockLight) tag.BlockLight = nbt.byteArray(blockLight)
         if (skyLight) tag.SkyLight = nbt.byteArray(skyLight)
@@ -83,6 +95,11 @@ module.exports = (ChunkColumn, registry) => {
     return sections
   }
 
+  /**
+   * @param {import('prismarine-chunk').PCChunk['sections'][number]} column
+   * @param {number} x
+   * @param {number} z
+   */
   function toNBT (column, x, z) {
     const tag = nbt.comp({
       DataVersion: nbt.int(dataVersion),
@@ -109,6 +126,9 @@ module.exports = (ChunkColumn, registry) => {
     return tag
   }
 
+  /**
+   * @param {nbt.NBT} tag
+   */
   function fromNBT (tag) {
     const data = nbt.simplify(tag)
     const column = new ChunkColumn({ minY: -64, worldHeight: 384 })
