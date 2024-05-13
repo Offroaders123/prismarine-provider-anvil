@@ -28,6 +28,8 @@
   },
   "homepage": "https://github.com/PrismarineJS/prismarine-provider-anvil",
   "devDependencies": {
+    "@types/mocha": "^10.0.6",
+    "@types/node": "^20.12.11",
     "buffer-equal": "^1.0.0",
     "flatmap": "0.0.3",
     "minecraft-data": "^3.0.0",
@@ -35,7 +37,8 @@
     "prismarine-provider-anvil": "file:.",
     "prismarine-registry": "^1.1.0",
     "range": "0.0.3",
-    "standard": "^17.0.0"
+    "standard": "^17.0.0",
+    "typescript": "^5.4.5"
   },
   "dependencies": {
     "prismarine-chunk": "^1.29.0",
