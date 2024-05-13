@@ -60,6 +60,7 @@ module.exports = (Chunk, mcData) => {
    * @param {import('prismarine-chunk').PCChunk} chunk
    */
   function writeSections (chunk) {
+    /** @type {import('prismarine-chunk').PCChunk['sections']} */
     const sections = []
     for (let sectionY = 0; sectionY < 16; sectionY++) { sections.push(writeSection(chunk, sectionY)) }
 
@@ -75,6 +76,7 @@ module.exports = (Chunk, mcData) => {
   /**
    * @param {import('prismarine-chunk').PCChunk} chunk
    * @param {import('prismarine-chunk').PCChunk['sections'][number]} section
+   * @returns {void}
    */
   function readSection (chunk, { Y, Blocks, Add, Data, BlockLight, SkyLight }) {
     readBlocks(chunk, Y, Blocks, Add)
@@ -86,6 +88,7 @@ module.exports = (Chunk, mcData) => {
   /**
    * @param {import('prismarine-chunk').PCChunk} chunk
    * @param {number} sectionY
+   * @returns {import('prismarine-chunk').PCChunk['sections'][number]}
    */
   function writeSection (chunk, sectionY) {
     return {
